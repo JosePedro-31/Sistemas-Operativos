@@ -8,6 +8,9 @@
 #include <errno.h>
 #include <time.h>
 
+
+
+
 int main(int argc, char *argv[]) {
 
     // LIGAÇÃO CLIENTE-SERVIDOR
@@ -31,11 +34,20 @@ int main(int argc, char *argv[]) {
         printf("Recebi: %s\n", buffer);
         close(servidor_cliente);
 
-        // separar o buffer em tempo, prog e args
-        int tempo;
-        char prog[20];
-        char args[100];
-        sscanf(buffer, "%d %s %s", &tempo, prog, args);
+        // int tempo;
+        // char prog[20];
+        // char args[100];
+        // sscanf(buffer, "%d %s %s", &tempo, prog, args);
+
+        // separar o buffer usando o strtok
+        char *tempo_str = strtok(buffer, " ");
+        char *prog = strtok(NULL, " ");
+        char *args = strtok(NULL, " ");
+
+        // converter o tempo para inteiro
+        int tempo = atoi(tempo_str);
+
+        
 
         // executar o programa
         printf("Vou executar o programa %s com os argumentos %s durante %d segundos\n", prog, args, tempo);
