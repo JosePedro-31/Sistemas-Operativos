@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
         perror("Erro a criar o fifo (server side)\n");
         _exit(1);
     }
-
+        
     while (1) {
 
         // abrir o fifo cliente_servidor_fifo

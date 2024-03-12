@@ -26,8 +26,6 @@ void execute (int tempo, char* prog, char* args) {
     write(cliente_servidor, buffer, strlen(buffer));
     // fechar o fifo
     close(cliente_servidor);
-    
-
 }
 
 
