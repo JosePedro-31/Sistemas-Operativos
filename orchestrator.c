@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -8,8 +9,11 @@
 #include <errno.h>
 #include <time.h>
 
-
-
+typedef struct tarefas{
+    int tempo;
+    char prog[20];
+    char args[100];
+} Tarefa;
 
 int main(int argc, char *argv[]) {
 
@@ -34,6 +38,11 @@ int main(int argc, char *argv[]) {
         printf("Recebi: %s\n", buffer);
         close(servidor_cliente);
 
+        // registar o tempo através da função gettimeofday
+        struct timeval tempoinit;
+        gettimeofday(&tempoinit, NULL);
+        time_t tempo_inicial = tempoinit.tv_sec;
+
         // int tempo;
         // char prog[20];
         // char args[100];
@@ -48,10 +57,6 @@ int main(int argc, char *argv[]) {
         int tempo = atoi(tempo_str);
 
         
-
-        // executar o programa
-        printf("Vou executar o programa %s com os argumentos %s durante %d segundos\n", prog, args, tempo);
-
         // criar um processo filho
         pid_t pid = fork();
 
