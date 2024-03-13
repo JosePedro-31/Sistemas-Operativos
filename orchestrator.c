@@ -36,7 +36,6 @@ int main(int argc, char *argv[]) {
         }
         char buffer[1024];
         read(servidor_cliente, buffer, 1024);
-        printf("Recebi: %s\n", buffer);
         close(servidor_cliente);
         
         // Escrever no ecrá que a tarefa foi recebida
@@ -90,9 +89,20 @@ int main(int argc, char *argv[]) {
                 time_t tempo_final = tempofinal.tv_sec;
                 // calcular o tempo que demorou a tarefa
                 tarefa.tempo_total = tempo_final - tempo_inicial;
+
+                // escrever para um ficheiro "Tarefas" o identificador da tarefa e o tempo que demorou a ser executada
+                int fd = open("Tarefas", O_WRONLY | O_APPEND | O_CREAT, 0666);
+                if (fd == -1) {
+                    perror("Erro na abertura do ficheiro Tarefas\n");
+                    _exit(1);
+                }
+                // escrever o identificador da tarefa
+                write(fd, task, sizeof(int));
+                // escrever o tempo que demorou a tarefa
+                write(fd, tarefa.tempo_total, sizeof(time_t));
+                close(fd);
             }
         }    
-
     }
 
     return 0;
