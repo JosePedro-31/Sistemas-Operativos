@@ -20,15 +20,14 @@ void execute (int tempo, char* prog, char* args) {
 		_exit(1);
     
     }
-    // escrever para o buffer o tempo, prog e args para que o servidor possa executar o programa
+    // criar um buffer para guardar o tempo, o prog e os args
     char buffer[1024];
     sprintf(buffer, "%d %s %s", tempo, prog, args);
-    // escrever para o fifo
+    // escrever no fifo
     write(cliente_servidor, buffer, strlen(buffer));
     // fechar o fifo
     close(cliente_servidor);
 }
-
 
 
 int main(int argc, char *argv[]) {
@@ -40,20 +39,24 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
 
-    if ( argc < 3 ) {
-        printf("Usage:\n");
-        printf('Execute a function: ./client execute [time] -u "[prog] [arg-1] [arg-2] ..."\n');
-        printf("Check all tasks: ./client status\n");
-        return 1;
-    }
+    printf("Usage:\n");
+    printf('Execute a function: ./client execute [time] -u "[prog] [arg-1] [arg-2] ..."\n');
+    printf("Check all tasks: ./client status\n");
+
 
     if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[3], "-u") == 0)) {
-        // TO DO
-        execute(atoi(argv[2]), argv[4], argv[5]);
+        
+        // guardar todos os argumentos dentro de um array args
+        char *args[argc-4];
+        for (int i = 5; i < argc; i++) {
+            args[i-5] = argv[i];
+        }
+        // executar a função execute
+        execute(atoi(argv[2]), argv[4], args);
     }
 
     if ( strcmp(argv[1],"status") == 0 ) {
-        // TO DO
+        
         status();
     }
 

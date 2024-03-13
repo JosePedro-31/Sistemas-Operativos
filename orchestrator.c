@@ -37,6 +37,11 @@ int main(int argc, char *argv[]) {
         read(servidor_cliente, buffer, 1024);
         printf("Recebi: %s\n", buffer);
         close(servidor_cliente);
+        
+        // Escrever no ecrá que a tarefa foi recebida
+        int task = 0;
+        printf("TASK %d Received\n", task);
+        task+=1;
 
         // registar o tempo através da função gettimeofday
         struct timeval tempoinit;
