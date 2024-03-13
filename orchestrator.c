@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
         gettimeofday(&tempoinit, NULL);
         time_t tempo_inicial = tempoinit.tv_sec;
 
-        // separar os elementos do buffer usando a strtok para uma Tarefa
+        // separar os elementos do buffer usando a strtok para uma taskList
         taskList tarefa;
         char *token = strtok(buffer, " ");
         // converter o tempo para inteiro
@@ -82,8 +82,7 @@ int main(int argc, char *argv[]) {
             // PROCESSO PAI
             // esperar que o processo filho termine
             int status;
-            int terminated_pid;
-            terminated_pid = wait(&status);
+            wait(&status);
             if (WIFEXITED(status)) {
                 // registar o tempo através da função gettimeofday
                 struct timeval tempofinal;
