@@ -10,7 +10,7 @@
 #include <time.h>
 
 
-void execute (int tempo, char* prog, char* args) {
+void execute (int tempo, char* prog, char* args[]) {
 
     // abrir o fifo cliente_servidor_fifo
     int cliente_servidor = open("cliente_servidor_fifo", O_WRONLY | O_TRUNC, 0666);

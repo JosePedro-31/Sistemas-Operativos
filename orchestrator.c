@@ -12,7 +12,7 @@
 typedef struct ListaTarefas{
     int tempo;
     char prog[20];
-    char *args[300];
+    char* args[300];
     time_t tempo_total;
 } taskList;
 
