@@ -13,6 +13,7 @@
 
 void execute (int tempo, char* prog, char* args[], int argsSize) {
 
+    
     // abrir o fifo cliente_servidor_fifo
     int cliente_servidor = open("cliente_servidor_fifo", O_WRONLY | O_TRUNC, 0666);
     
@@ -38,6 +39,7 @@ void execute (int tempo, char* prog, char* args[], int argsSize) {
 
 int main(int argc, char *argv[]) {
 
+    
     // LIGAÇÃO CLIENTE-SERVIDOR
     if((mkfifo("cliente_servidor_fifo", 0666) == -1) && errno != EEXIST) {
 
@@ -53,18 +55,31 @@ int main(int argc, char *argv[]) {
     if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[3], "-u") == 0)) {
         
         // guardar todos os argumentos dentro de um array args
+        /*
         char *args[argc-4];
         for (int i = 5; i < argc; i++) {
             args[i-5] = argv[i];
         }
         // executar a função execute
         execute(atoi(argv[2]), argv[4], args, argc-4);
+        */
+        char *commands[argc-5];
+	    int N = 0;
+	    for(int i=5; i < argc; i++){
+		    commands[N] = strdup(argv[i]);
+		    printf("command[%d] = %s\n", N, commands[N]);
+		    N++;
+	    }
+        // passar o tempo, programa, argumentos e o tamanho do array args
+        execvp(argv[4], commands);
     }
 
     if ( strcmp(argv[1],"status") == 0 ) {
         
         //status();
     }
+    
 
+    
     return 0;
 }
