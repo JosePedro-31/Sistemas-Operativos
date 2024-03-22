@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -10,7 +11,7 @@
 #include <time.h>
 
 
-void execute (int tempo, char* prog, char* args[]) {
+void execute (int tempo, char* prog, char* args[], int argsSize) {
 
     // abrir o fifo cliente_servidor_fifo
     int cliente_servidor = open("cliente_servidor_fifo", O_WRONLY | O_TRUNC, 0666);
@@ -21,8 +22,13 @@ void execute (int tempo, char* prog, char* args[]) {
     
     }
     // criar um buffer para guardar o tempo, o prog e os args
-    char buffer[1024];
-    sprintf(buffer, "%d %s %s", tempo, prog, args);
+    char buffer[300];
+    // escrever no buffer o tempo, o prog e os args
+    sprintf(buffer, "%d %s %s", tempo, prog, args[0]);
+    for (int i = 1; i < argsSize; i++) {
+        strcat(buffer, " ");
+        strcat(buffer, args[i]);
+    }
     // escrever no fifo
     write(cliente_servidor, buffer, strlen(buffer));
     // fechar o fifo
@@ -40,7 +46,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Usage:\n");
-    printf('Execute a function: ./client execute [time] -u "[prog] [arg-1] [arg-2] ..."\n');
+    printf("Execute a function: ./client execute [time] -u '[prog] [arg-1] [arg-2] ...'\n");
     printf("Check all tasks: ./client status\n");
 
 
@@ -52,12 +58,12 @@ int main(int argc, char *argv[]) {
             args[i-5] = argv[i];
         }
         // executar a função execute
-        execute(atoi(argv[2]), argv[4], args);
+        execute(atoi(argv[2]), argv[4], args, argc-4);
     }
 
     if ( strcmp(argv[1],"status") == 0 ) {
         
-        status();
+        //status();
     }
 
     return 0;

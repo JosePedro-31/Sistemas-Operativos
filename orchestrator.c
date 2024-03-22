@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -9,12 +10,18 @@
 #include <errno.h>
 #include <time.h>
 
-typedef struct ListaTarefas{
+typedef struct OngoingTask{
     int tempo;
     char prog[20];
-    char* args[300];
-    time_t tempo_total;
-} taskList;
+    char *args[300];
+    char taskID[20];
+} OngoingTask;
+
+
+typedef struct FinishedTask{
+    char taskID[20];
+    time_t tempo_exec;
+} FinishedTask;
 
 int main(int argc, char *argv[]) {
 
@@ -41,38 +48,43 @@ int main(int argc, char *argv[]) {
         // Escrever no ecrá que a tarefa foi recebida
         int task = 1;
         printf("TASK %d Received\n", task);
-        task+=1;
 
         // registar o tempo através da função gettimeofday
         struct timeval tempoinit;
         gettimeofday(&tempoinit, NULL);
+        // converter o tempo para milisegundos
         time_t tempo_inicial = tempoinit.tv_sec;
 
         // separar os elementos do buffer usando a strtok para uma taskList
-        taskList tarefa;
+        OngoingTask currTask;
         char *token = strtok(buffer, " ");
         // converter o tempo para inteiro
-        tarefa.tempo = atoi(token);
+        currTask.tempo = atoi(token);
         token = strtok(NULL, " ");
         // copiar o prog para a struct
-        strcpy(tarefa.prog, token); 
+        strcpy(currTask.prog, token); 
         token = strtok(NULL, " ");
         // copiar os args para a struct 
         int i = 0;
         // enquanto houver tokens
         while (token != NULL) {
             // copiar o token para a struct
-            tarefa.args[i] = token;
+            currTask.args[i] = token;
             // ir buscar o próximo token
             token = strtok(NULL, " ");
             i++;
         }
+        currTask.args[i] = NULL;
+        // criar um identificador para a tarefa
+        snprintf(currTask.taskID, sizeof(currTask.taskID), "T%d", task);
+        // incrementar o task
+        task++;
         
         // criar um processo filho
         pid_t pid = fork();
         if (pid == 0) {
             // executar o prog com os args
-            execvp(tarefa.prog, tarefa.args);
+            execvp(currTask.prog, currTask.args);
             // se o execvp falhar
             perror("Erro na execução do programa\n");
             _exit(-1);
@@ -87,8 +99,12 @@ int main(int argc, char *argv[]) {
                 struct timeval tempofinal;
                 gettimeofday(&tempofinal, NULL);
                 time_t tempo_final = tempofinal.tv_sec;
+
+                FinishedTask endTask;
+                // guardar o identificador da tarefa nas FinishedTask
+                strcpy(endTask.taskID, currTask.taskID);
                 // calcular o tempo que demorou a tarefa
-                tarefa.tempo_total = tempo_final - tempo_inicial;
+                endTask.tempo_exec = tempo_final - tempo_inicial;
 
                 // escrever para um ficheiro "Tarefas" o identificador da tarefa e o tempo que demorou a ser executada
                 int fd = open("Tarefas", O_WRONLY | O_APPEND | O_CREAT, 0666);
@@ -97,9 +113,10 @@ int main(int argc, char *argv[]) {
                     _exit(1);
                 }
                 // escrever o identificador da tarefa
-                write(fd, task, sizeof(int));
-                // escrever o tempo que demorou a tarefa
-                write(fd, tarefa.tempo_total, sizeof(time_t));
+                write(fd, endTask.taskID, sizeof(char));
+                // escrever o tempo de execução da tarefa
+                write(fd, &endTask.tempo_exec, sizeof(time_t));
+                // fechar o descritor do ficheiro
                 close(fd);
             }
         }    
