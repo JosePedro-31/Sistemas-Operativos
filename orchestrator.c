@@ -74,8 +74,8 @@ int main(int argc, char *argv[]) {
             // executar o prog com os args
             execvp(tarefa.prog, tarefa.args);
             // se o execvp falhar
-            perror("Erro na execução do prog\n");
-            _exit(1);
+            perror("Erro na execução do programa\n");
+            _exit(-1);
         }
         else {
             // PROCESSO PAI
