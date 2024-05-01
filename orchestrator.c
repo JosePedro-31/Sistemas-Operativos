@@ -72,6 +72,20 @@ int main(int argc, char *argv[]) {
         printf("Task ID: %s\n", currentTask.taskID);
         printf("Program: %s\n", currentTask.prog);      
 
+        int fd_out_original = dup(1);
+        int fd_out = open(currentTask.taskID, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+        if (fd_out == -1) {
+            perror("Error opening file");
+            return -1;
+        }
+    
+        int res = dup2(fd_out, 1); // duplicate file descriptor fd_out to stdout
+    
+        if (res == -1) {
+            perror("Error duplicating file descriptor");
+            return -1;
+        }
+
         // criar um processo filho
         pid_t pid = fork();
         if (pid == -1){
@@ -90,10 +104,22 @@ int main(int argc, char *argv[]) {
         else {
             // PROCESSO PAI
             // esperar que o processo filho termine
+
             int status;
             waitpid(pid, &status, 0);
             if (WIFEXITED(status)) {
-                
+
+                close(fd_out); // close file descriptor
+
+                int res = dup2(1, fd_out_original); // duplicate file descriptor fd_out to stdout
+
+                if (res == -1) {
+                    perror("Error duplicating file descriptor");
+                    return -1;
+                }
+
+                close(fd_out_original); // close file descriptor
+
                 // registar o tempo através da função gettimeofday
                 struct timeval finishtime;
                 gettimeofday(&finishtime, NULL);

@@ -1,15 +1,15 @@
 CC = gcc
 CFLAGS = -Wall -g
 
-all: server1 client1
+all: orchestrator client
 
-server1: server1.o
+orchestrator: orchestrator.o
 
-client1: client1.o
+client: client.o
 
-server1.o: server1.c defs.h
+orchestrator.o: orchestrator.c defs.h
 
-client1.o: client1.c defs.h
+client.o: client.c defs.h
 
 clean:
-	rm -f -r *.dSYM fifo* server1 client1 *.o
+	rm -f -r *.dSYM fifo* orchestrator client *.o
