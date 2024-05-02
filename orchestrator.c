@@ -12,20 +12,16 @@
 #include "defs.h"
 
 
-int main(int argc, char *argv[]) {
 
-
-    if((mkfifo(SERVER, 0666) == -1) && errno != EEXIST) {
-        perror("Erro a criar o fifo server\n");
-        return -1;
-    }
+int execute() {   
 
     // abrir o fifo SERVER
     int fds = open(SERVER, O_RDONLY);
     if(fds == -1){
         perror("Erro na abertura do fifo server (server side)\n");
         _exit(1);
-    }   
+    }
+
 
     int fdp = open(SERVER, O_WRONLY);
     if(fdp == -1){
@@ -150,8 +146,8 @@ int main(int argc, char *argv[]) {
                 FinishedTask endTask;
                 // guardar o identificador da tarefa nas FinishedTask
                 strcpy(endTask.taskID, currentTask.taskID);
-                // calcular o tempo que demorou a tarefa
-                endTask.exec_time = finish_time - start_time;
+                // calcular o tempo que demorou a tarefa e converter para milisegundos
+                endTask.exec_time = (finish_time - start_time)/1000;
                 // guardar o pid do processo
                 endTask.pid = currentTask.pid;
 
@@ -178,6 +174,50 @@ int main(int argc, char *argv[]) {
     // fechar o fifo
     close(fds);
     unlink(SERVER);
+    
+    return 0;
+}
 
+
+
+void status() {
+
+}
+
+
+int main(int argc, char *argv[]) {
+
+
+    if((mkfifo(SERVER, 0666) == -1) && errno != EEXIST) {
+        perror("Erro a criar o fifo server\n");
+        return -1;
+    }
+
+    // abrir o fifo SERVER
+    int fds = open(SERVER, O_RDONLY);
+    if(fds == -1){
+        perror("Erro na abertura do fifo server (server side)\n");
+        _exit(1);
+    }
+
+    // ler uma flag que executa a função chamada
+    int flag;
+    if (read(fds, &flag, sizeof(flag)) == -1) {
+
+        perror("Erro a ler\n");
+        _exit(1);
+    }
+
+    // 0 representa a funçaõ execute
+    if (flag == 0) {
+        execute();
+    }
+
+    // 1 representa a função execute
+    if (flag == 1) {
+        status();
+    }
+
+    
     return 0;
 }

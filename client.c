@@ -22,6 +22,21 @@ int main(int argc, char *argv[]) {
 
     if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[3], "-u") == 0)) {
         
+        // abrir o fifo SERVER para enviar informação para o servidor
+        int fds = open(SERVER, O_WRONLY);
+        if(fds == -1){
+            perror("Erro na abertura do fifo fds (client side)\n");
+            _exit(1);
+        
+        }
+
+        int flag = 0;
+        if (write(fds, &flag, sizeof(flag)) == -1) {
+
+            perror("Erro a escrever\n");
+            _exit(1);
+        }
+        
 
         // criar a tarefa
         OngoingTask currentTask;
@@ -51,14 +66,6 @@ int main(int argc, char *argv[]) {
 
         printf("Args : %s\n", currentTask.args);
 
-        // abrir o fifo SERVER para enviar informação para o servidor
-        int fds = open(SERVER, O_WRONLY);
-        if(fds == -1){
-            perror("Erro na abertura do fifo fds (client side)\n");
-            _exit(1);
-        
-        }
-
         // escrever no fifo a struct
         if( write(fds, &currentTask, sizeof(struct OngoingTask)) == -1){
             perror("Erro a escrever no fifo fds (client side)\n");
@@ -70,10 +77,23 @@ int main(int argc, char *argv[]) {
 	}
     
 
-    //if ( strcmp(argv[1],"status") == 0 ) {
+    if ( strcmp(argv[1],"status") == 0 ) {
         
-        //status();
-    //}
+        // abrir o fifo SERVER para enviar informação para o servidor
+        int fds = open(SERVER, O_WRONLY);
+        if(fds == -1){
+            perror("Erro na abertura do fifo fds (client side)\n");
+            _exit(1);
+        
+        }
+
+        int flag = 1;
+        if (write(fds, &flag, sizeof(flag)) == -1) {
+
+            perror("Erro a escrever\n");
+            _exit(1);
+        }
+    }
     
     return 0;
 }
