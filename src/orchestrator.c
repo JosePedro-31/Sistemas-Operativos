@@ -13,6 +13,54 @@
 
 
 
+// Função para inicializar a fila
+TaskQueue* initializeQueue() {
+    TaskQueue* queue = (TaskQueue*)malloc(sizeof(TaskQueue));
+    if (queue == NULL) {
+        perror("Erro ao alocar memória para a fila");
+        _exit(1);
+    }
+    queue->front = NULL;
+    queue->rear = NULL;
+    return queue;
+}
+
+// Função para adicionar uma tarefa à fila
+void enqueue(TaskQueue* queue, OngoingTask task) {
+    OngoingTask* newTask = (OngoingTask*)malloc(sizeof(OngoingTask));
+    if (newTask == NULL) {
+        perror("Erro ao alocar memória para a tarefa");
+        _exit(1);
+    }
+    *newTask = task;
+    newTask->next = NULL;
+    if (queue->rear == NULL) {
+        queue->front = newTask;
+        queue->rear = newTask;
+    }
+    else {
+        queue->rear->next = newTask;
+        queue->rear = newTask;
+    }
+}
+
+// Função para remover uma tarefa da fila
+OngoingTask dequeue(TaskQueue* queue) {
+    if (queue->front == NULL) {
+        perror("Fila vazia");
+        _exit(1);
+    }
+    OngoingTask task = *queue->front;
+    OngoingTask* temp = queue->front;
+    queue->front = queue->front->next;
+    if (queue->front == NULL) {
+        queue->rear = NULL;
+    }
+    free(temp);
+    return task;
+}
+
+// Função vai adicionar as tarefas à fila
 int execute() {   
 
     // abrir o fifo SERVER
@@ -29,15 +77,21 @@ int execute() {
         _exit(1);
     }  
 
+    TaskQueue* queue = initializeQueue();
+
     OngoingTask currentTask;
     int task = 1;
     // ler do fifo
     int bytes_read;
     while((bytes_read = read(fds, &currentTask, sizeof(struct OngoingTask))) > 0) {
-        
+
         if (bytes_read == -1) {
             perror("Erro a ler do fifo server\n");
             return -1;
+        }
+        // sempre que o tempo for -1 para de ler
+        if (currentTask.time == -1) {
+            break;
         }
 
         printf("\n\nTASK %d Received\n", task);
@@ -46,27 +100,36 @@ int execute() {
         // incrementar o task
         task++;
 
-        
         // registar o tempo através da função gettimeofday
         struct timeval starttime;
         gettimeofday(&starttime, NULL);
-        time_t start_time = starttime.tv_usec;
+        currentTask.start_time = starttime.tv_usec;
 
-        // separar os argumentos da string args
-        char *commands[currentTask.argsSize + 1];
+        // alocar memória para guardar os argumentos
+        currentTask.commands = (char**)malloc(sizeof(char*) * currentTask.argsSize);
+        if (currentTask.commands == NULL) {
+            perror("Erro ao alocar memória para os argumentos\n");
+            return -1;
+        }
+        // guardar os argumentos num array de strings
         int i = 0;
         char *token = strtok(currentTask.args, " ");
         while (token != NULL) {
-            commands[i] = strdup(token);
+            currentTask.commands[i] = strdup(token);
             token = strtok(NULL, " ");
             i++;
         }
-        commands[i] = NULL;
+        currentTask.commands[i] = NULL;
+
+        // adicionar a tarefa à fila
+        enqueue(queue, currentTask);
 
         printf("Time: %d\n", currentTask.time);
         printf("PID: %d\n", currentTask.pid);
+        printf("Program: %s\n", currentTask.prog);
+        printf("Arguments: %s\n", currentTask.args);
         printf("Task ID: %s\n", currentTask.taskID);
-        printf("Program: %s\n", currentTask.prog);      
+        printf("\n");
 
         int fd_out_original = dup(1);
         int fd_erro_original = dup(2);
@@ -88,26 +151,26 @@ int execute() {
 
             if (fd_out == -1) {
                 perror("Erro a abrir o ficheiro fd_out\n");
-                return -1;
+                _exit(1);
             }
-    
+
             int res = dup2(fd_out, 1); // duplicate file descriptor fd_out to stdout
-    
+
             if (res == -1) {
                 perror("Erro a duplicar o descriptor de ficheiro 1\n");
-                return -1;
+                _exit(1);
             }
 
             int res2 = dup2(fd_out, 2); // duplicate file descriptor fd_out to stderr
 
             if (res2 == -1) {
                 perror("Erro a duplicar o descritor de ficheiro 2\n");
-                return -1;
+                _exit(1);
             }
             close(fd_out); // close file descriptor
 
             // executar o programa
-            execvp(currentTask.prog, commands);
+            execvp(currentTask.prog, currentTask.commands);
             // se o execvp falhar
             perror("Erro na execução do programa\n");
             _exit(-1);
@@ -126,14 +189,14 @@ int execute() {
 
                 if (res == -1) {
                     perror("Erro a duplicar o descriptor de ficheiro 1\n");
-                    return -1;
+                    _exit(1);
                 }
 
                 int res2 = dup2(2, fd_erro_original); // duplicate file descriptor fd_out to stderr
 
                 if (res2 == -1) {
                     perror("Erro a duplicar o descritor de ficheiro 2\n");
-                    return -1;
+                    _exit(1);
                 }
 
                 close(fd_out_original); // close file descriptor
@@ -141,13 +204,13 @@ int execute() {
                 // registar o tempo através da função gettimeofday
                 struct timeval finishtime;
                 gettimeofday(&finishtime, NULL);
-                time_t finish_time = finishtime.tv_usec;
+                currentTask.finish_time = finishtime.tv_usec;
 
                 FinishedTask endTask;
                 // guardar o identificador da tarefa nas FinishedTask
                 strcpy(endTask.taskID, currentTask.taskID);
                 // calcular o tempo que demorou a tarefa e converter para milisegundos
-                endTask.exec_time = (finish_time - start_time)/1000;
+                endTask.exec_time = (currentTask.finish_time - currentTask.start_time)/1000;
                 // guardar o pid do processo
                 endTask.pid = currentTask.pid;
 
@@ -173,8 +236,9 @@ int execute() {
     }
     // fechar o fifo
     close(fds);
+    close(fdp);
     unlink(SERVER);
-    
+
     return 0;
 }
 

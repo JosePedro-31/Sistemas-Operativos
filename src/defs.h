@@ -6,9 +6,19 @@ typedef struct OngoingTask{
     int pid;
     char prog[20];
     char args[300];
+    char **commands;
     int argsSize;
     char taskID[20];
+    time_t start_time;
+    time_t finish_time;
+    struct OngoingTask *next;
 } OngoingTask;
+
+typedef struct TaskQueue{
+    OngoingTask *front;
+    OngoingTask *rear;
+} TaskQueue;
+
 
 typedef struct FinishedTask{
     int pid;
