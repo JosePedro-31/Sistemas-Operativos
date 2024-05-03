@@ -1,15 +1,26 @@
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g 
 
-all: orchestrator client
+all: folders orchestrator client
 
-orchestrator: orchestrator.o
+orchestrator: bin/orchestrator
 
-client: client.o
+client: bin/client
 
-orchestrator.o: orchestrator.c defs.h
+folders:
+	@mkdir -p src include obj bin tmp
 
-client.o: client.c defs.h
+bin/client: obj/client.o
+	$(CC) $(CFLAGS) obj/client.o -o bin/client.c
+
+obj/client.o: src/client.c
+	$(CC) $(CFLAGS) -c src/client.c -o obj/client.o
+
+bin/orchestrator: obj/orchestrator.o
+	$(CC) $(CFLAGS) obj/orchestrator.o -o bin/orchestrator
+
+obj/orchestrator.o: src/orchestrator.c
+	$(CC) $(CFLAGS) -c src/orchestrator.c -o obj/orchestrator.o
 
 clean:
-	rm -f -r *.dSYM fifo* orchestrator client *.o
+	rm -f obj/* tmp/* bin/{client,orchestrator}
