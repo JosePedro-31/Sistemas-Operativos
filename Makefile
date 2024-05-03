@@ -8,10 +8,10 @@ orchestrator: bin/orchestrator
 client: bin/client
 
 folders:
-	@mkdir -p src include obj bin tmp
+	@mkdir -p src obj bin tmp
 
 bin/client: obj/client.o
-	$(CC) $(CFLAGS) obj/client.o -o bin/client.c
+	$(CC) $(CFLAGS) obj/client.o -o bin/client
 
 obj/client.o: src/client.c
 	$(CC) $(CFLAGS) -c src/client.c -o obj/client.o
