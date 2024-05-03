@@ -60,6 +60,7 @@ OngoingTask dequeue(TaskQueue* queue) {
 }
 
 
+
 int execute() {   
 
     // abrir o fifo SERVER
@@ -76,8 +77,13 @@ int execute() {
         _exit(1);
     }  
 
+    // criar a tarefa
     OngoingTask currentTask;
     int task = 1;
+
+    // inicializar a fila
+    TaskQueue* queue = initializeQueue();
+
     // ler do fifo
     int bytes_read;
     while((bytes_read = read(fds, &currentTask, sizeof(struct OngoingTask))) > 0) {
@@ -85,6 +91,11 @@ int execute() {
         if (bytes_read == -1) {
             perror("Erro a ler do fifo server\n");
             return -1;
+        }
+
+        // caso o tempo seja -1, terminar o ciclo
+        if (currentTask.time == -1) {
+            break;
         }
 
         printf("\n\nTASK %d Received\n", task);
@@ -109,6 +120,9 @@ int execute() {
             i++;
         }
         commands[i] = NULL;
+
+        // adicionar a tarefa à fila
+        enqueue(queue, currentTask);
 
         printf("Time: %d\n", currentTask.time);
         printf("PID: %d\n", currentTask.pid);
@@ -190,7 +204,8 @@ int execute() {
                 gettimeofday(&finishtime, NULL);
                 time_t finish_time = finishtime.tv_usec;
 
-                FinishedTask endTask;
+                FinishedTask endTask;    // 1 representa a função execute
+                
                 // guardar o identificador da tarefa nas FinishedTask
                 strcpy(endTask.taskID, currentTask.taskID);
                 // calcular o tempo que demorou a tarefa e converter para milisegundos
@@ -227,10 +242,6 @@ int execute() {
 
 
 
-void status() {
-
-}
-
 
 int main(int argc, char *argv[]) {
 
@@ -247,6 +258,7 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
 
+    /*
     // ler uma flag que executa a função chamada
     int flag;
     if (read(fds, &flag, sizeof(flag)) == -1) {
@@ -254,16 +266,12 @@ int main(int argc, char *argv[]) {
         perror("Erro a ler\n");
         _exit(1);
     }
+    */
 
     // 0 representa a funçaõ execute
-    if (flag == 0) {
-        execute();
-    }
-
-    // 1 representa a função execute
-    if (flag == 1) {
-        status();
-    }
+    
+    execute();
+    
 
     
     return 0;

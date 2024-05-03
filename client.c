@@ -30,12 +30,14 @@ int main(int argc, char *argv[]) {
         
         }
 
+        /*
         int flag = 0;
         if (write(fds, &flag, sizeof(flag)) == -1) {
 
             perror("Erro a escrever\n");
             _exit(1);
         }
+        */
         
 
         // criar a tarefa

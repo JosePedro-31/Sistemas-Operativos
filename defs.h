@@ -6,7 +6,6 @@ typedef struct OngoingTask{
     int pid;
     char prog[20];
     char args[300];
-    char **commands;
     int argsSize;
     char taskID[20];
     time_t start_time;
