@@ -12,7 +12,6 @@
 #include "defs.h"
 
 
-
 // Função para inicializar a fila
 TaskQueue* initializeQueue() {
     TaskQueue* queue = (TaskQueue*)malloc(sizeof(TaskQueue));
@@ -60,7 +59,7 @@ OngoingTask dequeue(TaskQueue* queue) {
     return task;
 }
 
-// Função vai adicionar as tarefas à fila
+
 int execute() {   
 
     // abrir o fifo SERVER
@@ -77,21 +76,15 @@ int execute() {
         _exit(1);
     }  
 
-    TaskQueue* queue = initializeQueue();
-
     OngoingTask currentTask;
     int task = 1;
     // ler do fifo
     int bytes_read;
     while((bytes_read = read(fds, &currentTask, sizeof(struct OngoingTask))) > 0) {
-
+        
         if (bytes_read == -1) {
             perror("Erro a ler do fifo server\n");
             return -1;
-        }
-        // sempre que o tempo for -1 para de ler
-        if (currentTask.time == -1) {
-            break;
         }
 
         printf("\n\nTASK %d Received\n", task);
@@ -100,36 +93,27 @@ int execute() {
         // incrementar o task
         task++;
 
+        
         // registar o tempo através da função gettimeofday
         struct timeval starttime;
         gettimeofday(&starttime, NULL);
-        currentTask.start_time = starttime.tv_usec;
+        time_t start_time = starttime.tv_usec;
 
-        // alocar memória para guardar os argumentos
-        currentTask.commands = (char**)malloc(sizeof(char*) * currentTask.argsSize);
-        if (currentTask.commands == NULL) {
-            perror("Erro ao alocar memória para os argumentos\n");
-            return -1;
-        }
-        // guardar os argumentos num array de strings
+        // separar os argumentos da string args
+        char *commands[currentTask.argsSize + 1];
         int i = 0;
         char *token = strtok(currentTask.args, " ");
         while (token != NULL) {
-            currentTask.commands[i] = strdup(token);
+            commands[i] = strdup(token);
             token = strtok(NULL, " ");
             i++;
         }
-        currentTask.commands[i] = NULL;
-
-        // adicionar a tarefa à fila
-        enqueue(queue, currentTask);
+        commands[i] = NULL;
 
         printf("Time: %d\n", currentTask.time);
         printf("PID: %d\n", currentTask.pid);
-        printf("Program: %s\n", currentTask.prog);
-        printf("Arguments: %s\n", currentTask.args);
         printf("Task ID: %s\n", currentTask.taskID);
-        printf("\n");
+        printf("Program: %s\n", currentTask.prog);      
 
         int fd_out_original = dup(1);
         int fd_erro_original = dup(2);
@@ -145,32 +129,32 @@ int execute() {
 
             // redirecionar a entrada para uma pasta out com o nome da tarefa
             char out[25];
-            sprintf(out, "out/%s", currentTask.taskID);
+            sprintf(out, "tmp/%s", currentTask.taskID);
 
             int fd_out = open(out, O_WRONLY | O_CREAT | O_TRUNC, 0777); // open file for writing
 
             if (fd_out == -1) {
                 perror("Erro a abrir o ficheiro fd_out\n");
-                _exit(1);
+                return -1;
             }
-
+    
             int res = dup2(fd_out, 1); // duplicate file descriptor fd_out to stdout
-
+    
             if (res == -1) {
                 perror("Erro a duplicar o descriptor de ficheiro 1\n");
-                _exit(1);
+                return -1;
             }
 
             int res2 = dup2(fd_out, 2); // duplicate file descriptor fd_out to stderr
 
             if (res2 == -1) {
                 perror("Erro a duplicar o descritor de ficheiro 2\n");
-                _exit(1);
+                return -1;
             }
             close(fd_out); // close file descriptor
 
             // executar o programa
-            execvp(currentTask.prog, currentTask.commands);
+            execvp(currentTask.prog, commands);
             // se o execvp falhar
             perror("Erro na execução do programa\n");
             _exit(-1);
@@ -189,14 +173,14 @@ int execute() {
 
                 if (res == -1) {
                     perror("Erro a duplicar o descriptor de ficheiro 1\n");
-                    _exit(1);
+                    return -1;
                 }
 
                 int res2 = dup2(2, fd_erro_original); // duplicate file descriptor fd_out to stderr
 
                 if (res2 == -1) {
                     perror("Erro a duplicar o descritor de ficheiro 2\n");
-                    _exit(1);
+                    return -1;
                 }
 
                 close(fd_out_original); // close file descriptor
@@ -204,13 +188,13 @@ int execute() {
                 // registar o tempo através da função gettimeofday
                 struct timeval finishtime;
                 gettimeofday(&finishtime, NULL);
-                currentTask.finish_time = finishtime.tv_usec;
+                time_t finish_time = finishtime.tv_usec;
 
                 FinishedTask endTask;
                 // guardar o identificador da tarefa nas FinishedTask
                 strcpy(endTask.taskID, currentTask.taskID);
                 // calcular o tempo que demorou a tarefa e converter para milisegundos
-                endTask.exec_time = (currentTask.finish_time - currentTask.start_time)/1000;
+                endTask.exec_time = (finish_time - start_time)/1000;
                 // guardar o pid do processo
                 endTask.pid = currentTask.pid;
 
@@ -220,7 +204,7 @@ int execute() {
                 printf("Execution Time: %ld ms\n", endTask.exec_time);
 
                 // escrever para um ficheiro "Tarefas" o identificador da tarefa e o tempo que demorou a ser executada
-                int fd = open("tarefas.txt", O_WRONLY | O_APPEND | O_CREAT, 0777);
+                int fd = open("tmp/tarefas.txt", O_WRONLY | O_APPEND | O_CREAT, 0777);
                 if (fd == -1) {
                     perror("Erro na abertura do ficheiro Tarefas\n");
                     _exit(1);
@@ -236,9 +220,8 @@ int execute() {
     }
     // fechar o fifo
     close(fds);
-    close(fdp);
     unlink(SERVER);
-
+    
     return 0;
 }
 
