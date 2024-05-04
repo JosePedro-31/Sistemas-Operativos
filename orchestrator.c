@@ -61,7 +61,7 @@ OngoingTask dequeue(TaskQueue* queue) {
 
 
 
-int execute() {   
+TaskQueue* execute() {   
 
     // abrir o fifo SERVER
     int fds = open(SERVER, O_RDONLY);
@@ -237,11 +237,38 @@ int execute() {
     close(fds);
     unlink(SERVER);
     
-    return 0;
+    return *queue;
 }
 
+// Função status vai imprimir as tarefas que estão na fila, que já foram executadas e as que estão a ser executadas
+void status (TaskQueue* queue) {
+    OngoingTask* current = queue->front;
+    while (current != NULL) {
+        printf("Task ID: %s\n", current->taskID);
+        printf("Time: %d\n", current->time);
+        printf("PID: %d\n", current->pid);
+        printf("Program: %s\n", current->prog);
+        printf("Args: %s\n", current->args);
+        current = current->next;
+    }
 
+    // abrir o ficheiro tarefas.txt
+    int fd = open("tmp/tarefas.txt", O_RDONLY);
+    if (fd == -1) {
+        perror("Erro na abertura do ficheiro tarefas.txt\n");
+        _exit(1);
+    }
 
+    FinishedTask endTask;
+    // ler o ficheiro tarefas.txt
+    while (read(fd, &endTask, sizeof(struct FinishedTask)) > 0) {
+        printf("Task ID: %s\n", endTask.taskID);
+        printf("PID: %d\n", endTask.pid);
+        printf("Execution Time: %ld ms\n", endTask.exec_time);
+    }
+    // fechar o ficheiro
+    close(fd);
+}
 
 int main(int argc, char *argv[]) {
 
@@ -268,9 +295,9 @@ int main(int argc, char *argv[]) {
     }
     */
 
-    // 0 representa a funçaõ execute
-    
-    execute();
+    if ( strcmp(argv[1],"execute") == 0 ) {
+        TaskQueue* queue = execute();
+    }
     
 
     
