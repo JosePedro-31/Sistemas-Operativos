@@ -61,7 +61,7 @@ OngoingTask dequeue(TaskQueue* queue) {
 
 
 
-TaskQueue* execute() {   
+void execute(TaskQueue* queue, OngoingTask currentTask) {   
 
     // abrir o fifo SERVER
     int fds = open(SERVER, O_RDONLY);
@@ -78,11 +78,7 @@ TaskQueue* execute() {
     }  
 
     // criar a tarefa
-    OngoingTask currentTask;
     int task = 1;
-
-    // inicializar a fila
-    TaskQueue* queue = initializeQueue();
 
     // ler do fifo
     int bytes_read;
@@ -90,7 +86,7 @@ TaskQueue* execute() {
         
         if (bytes_read == -1) {
             perror("Erro a ler do fifo server\n");
-            return -1;
+            _exit(1);
         }
 
         // caso o tempo seja -1, terminar o ciclo
@@ -136,7 +132,7 @@ TaskQueue* execute() {
         pid_t pid = fork();
         if (pid == -1){
             perror("Erro a criar o filho\n");
-            _exit(-1);
+            _exit(1);
         }
         if (pid == 0) {
             // PROCESSO FILHO
@@ -149,21 +145,21 @@ TaskQueue* execute() {
 
             if (fd_out == -1) {
                 perror("Erro a abrir o ficheiro fd_out\n");
-                return -1;
+                _exit(1);
             }
     
             int res = dup2(fd_out, 1); // duplicate file descriptor fd_out to stdout
     
             if (res == -1) {
                 perror("Erro a duplicar o descriptor de ficheiro 1\n");
-                return -1;
+                _exit(1);
             }
 
             int res2 = dup2(fd_out, 2); // duplicate file descriptor fd_out to stderr
 
             if (res2 == -1) {
                 perror("Erro a duplicar o descritor de ficheiro 2\n");
-                return -1;
+                _exit(1);
             }
             close(fd_out); // close file descriptor
 
@@ -171,7 +167,7 @@ TaskQueue* execute() {
             execvp(currentTask.prog, commands);
             // se o execvp falhar
             perror("Erro na execução do programa\n");
-            _exit(-1);
+            _exit(1);
         }
 
         else {
@@ -187,14 +183,14 @@ TaskQueue* execute() {
 
                 if (res == -1) {
                     perror("Erro a duplicar o descriptor de ficheiro 1\n");
-                    return -1;
+                    _exit(1);
                 }
 
                 int res2 = dup2(2, fd_erro_original); // duplicate file descriptor fd_out to stderr
 
                 if (res2 == -1) {
                     perror("Erro a duplicar o descritor de ficheiro 2\n");
-                    return -1;
+                    _exit(1);
                 }
 
                 close(fd_out_original); // close file descriptor
@@ -236,8 +232,7 @@ TaskQueue* execute() {
     // fechar o fifo
     close(fds);
     unlink(SERVER);
-    
-    return *queue;
+
 }
 
 // Função status vai imprimir as tarefas que estão na fila, que já foram executadas e as que estão a ser executadas
@@ -270,12 +265,13 @@ void status (TaskQueue* queue) {
     close(fd);
 }
 
+
 int main(int argc, char *argv[]) {
 
 
     if((mkfifo(SERVER, 0666) == -1) && errno != EEXIST) {
         perror("Erro a criar o fifo server\n");
-        return -1;
+        _exit(1);;
     }
 
     // abrir o fifo SERVER
@@ -285,21 +281,14 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
 
-    /*
-    // ler uma flag que executa a função chamada
-    int flag;
-    if (read(fds, &flag, sizeof(flag)) == -1) {
-
-        perror("Erro a ler\n");
-        _exit(1);
-    }
-    */
-
-    if ( strcmp(argv[1],"execute") == 0 ) {
-        TaskQueue* queue = execute();
-    }
     
 
+    TaskQueue* queue = initializeQueue();
+
+
+
+    status(queue);
+    
     
     return 0;
 }

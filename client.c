@@ -30,18 +30,11 @@ int main(int argc, char *argv[]) {
         
         }
 
-        /*
-        int flag = 0;
-        if (write(fds, &flag, sizeof(flag)) == -1) {
-
-            perror("Erro a escrever\n");
-            _exit(1);
-        }
-        */
-        
-
         // criar a tarefa
         OngoingTask currentTask;
+
+        // Tipo de tarefa (0 - exec, 1 - status)
+        currentTask.type = 0;
 
         // guardar o programa e os argumentos numa só string
 
@@ -89,8 +82,10 @@ int main(int argc, char *argv[]) {
         
         }
 
-        int flag = 1;
-        if (write(fds, &flag, sizeof(flag)) == -1) {
+        OngoingTask currentTask;
+        // Tipo de tarefa (0 - exec, 1 - status)
+        currentTask.type = 1;
+        if (write(fds, &currentTask, sizeof(OngoingTask)) == -1) {
 
             perror("Erro a escrever\n");
             _exit(1);
