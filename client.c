@@ -85,6 +85,7 @@ int main(int argc, char *argv[]) {
         OngoingTask currentTask;
         // Tipo de tarefa (0 - exec, 1 - status)
         currentTask.type = 1;
+        
         if (write(fds, &currentTask, sizeof(OngoingTask)) == -1) {
 
             perror("Erro a escrever\n");
