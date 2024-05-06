@@ -113,9 +113,9 @@ int main(int argc, char *argv[]) {
         }
         
         // ler do fifo as tarefas terminadas
-        printf("\n\nCompleted\n");
+        printf("\nCompleted\n");
         FinishedTask endTask;
-        while ((bytes_read = read(fdc, &endTask, sizeof(FinishedTask))) > 0) {
+        while ((bytes_read = read(fdc, &endTask, sizeof(struct FinishedTask))) > 0) {
             if (bytes_read == -1) {
                 perror("Erro a ler do fifo client\n");
                 _exit(1);
@@ -152,7 +152,30 @@ int main(int argc, char *argv[]) {
         close(fds);
     }
 
-    if (strcmp(argv[1], "execute") != 0 && strcmp(argv[1], "status") != 0 && strcmp(argv[1], "stop") != 0) {
+    if (strcmp(argv[1], "done") == 0) {
+        
+        // abrir o fifo SERVER para enviar informação para o servidor
+        int fds = open(SERVER, O_WRONLY);
+        if(fds == -1){
+            perror("Erro na abertura do fifo fds (client side)\n");
+            _exit(1);
+        
+        }
+
+        OngoingTask currentTask;
+        currentTask.type = 3;
+        
+        if (write(fds, &currentTask, sizeof(OngoingTask)) == -1) {
+
+            perror("Erro a escrever\n");
+            _exit(1);
+        }
+
+        // fechar o fifo
+        close(fds);
+    }
+
+    if (strcmp(argv[1], "execute") != 0 && strcmp(argv[1], "status") != 0 && strcmp(argv[1], "stop") != 0 && strcmp(argv[1], "done") != 0){
         printf("Invalid command\n");
 
         printf("\nUsage:\n");

@@ -2,7 +2,7 @@
 #define CLIENT "fifo_client"
 
 typedef struct OngoingTask{
-    int type; // 0 -> exec, 1 -> status, 2 -> stop
+    int type; // 0 -> add task, 1 -> status, 2 -> stop, 3 -> execute tasks
     int time;
     int pid;
     char prog[20];
