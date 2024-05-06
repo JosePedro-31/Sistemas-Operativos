@@ -2,7 +2,7 @@
 #define CLIENT "fifo_client"
 
 typedef struct OngoingTask{
-    int type; // 0 - exec, 1 - status
+    int type; // 0 -> exec, 1 -> status, 2 -> stop
     int time;
     int pid;
     char prog[20];
@@ -11,17 +11,17 @@ typedef struct OngoingTask{
     char taskID[20];
     time_t start_time;
     time_t finish_time;
-    struct OngoingTask *next;
 } OngoingTask;
-
-typedef struct TaskQueue{
-    OngoingTask *front;
-    OngoingTask *rear;
-} TaskQueue;
-
 
 typedef struct FinishedTask{
     int pid;
     char taskID[20];
+    char prog[20];
     time_t exec_time;
+    struct FinishedTask *next;
 } FinishedTask;
+
+typedef struct TaskQueue{
+    FinishedTask *front;
+    FinishedTask *rear;
+} TaskQueue;

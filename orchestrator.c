@@ -25,8 +25,8 @@ TaskQueue* initializeQueue() {
 }
 
 // Função para adicionar uma tarefa à fila
-void enqueue(TaskQueue* queue, OngoingTask task) {
-    OngoingTask* newTask = (OngoingTask*)malloc(sizeof(OngoingTask));
+void enqueue(TaskQueue* queue, FinishedTask task) {
+    FinishedTask* newTask = (FinishedTask*)malloc(sizeof(FinishedTask));
     if (newTask == NULL) {
         perror("Erro ao alocar memória para a tarefa");
         _exit(1);
@@ -35,22 +35,21 @@ void enqueue(TaskQueue* queue, OngoingTask task) {
     newTask->next = NULL;
     if (queue->rear == NULL) {
         queue->front = newTask;
-        queue->rear = newTask;
     }
     else {
         queue->rear->next = newTask;
-        queue->rear = newTask;
     }
+    queue->rear = newTask;
 }
 
-// Função para remover uma tarefa da fila
-OngoingTask dequeue(TaskQueue* queue) {
+// Função para retirar uma tarefa da fila
+FinishedTask dequeue(TaskQueue* queue) {
     if (queue->front == NULL) {
-        perror("Fila vazia");
+        perror("Erro a retirar tarefa da fila");
         _exit(1);
     }
-    OngoingTask task = *queue->front;
-    OngoingTask* temp = queue->front;
+    FinishedTask task = *queue->front;
+    FinishedTask* temp = queue->front;
     queue->front = queue->front->next;
     if (queue->front == NULL) {
         queue->rear = NULL;
@@ -58,7 +57,6 @@ OngoingTask dequeue(TaskQueue* queue) {
     free(temp);
     return task;
 }
-
 
 
 void execute(TaskQueue* queue, OngoingTask currentTask, int task) {   
@@ -71,7 +69,8 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
     // registar o tempo através da função gettimeofday
     struct timeval starttime;
     gettimeofday(&starttime, NULL);
-    time_t start_time = starttime.tv_usec;
+    currentTask.start_time = starttime.tv_usec;
+    
 
     // separar os argumentos da string args
     char *commands[currentTask.argsSize + 1];
@@ -83,9 +82,6 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
         i++;
     }
     commands[i] = NULL;
-
-    // adicionar a tarefa à fila
-    enqueue(queue, currentTask);
 
     printf("Time: %d\n", currentTask.time);
     printf("PID: %d\n", currentTask.pid);
@@ -165,16 +161,20 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
             // registar o tempo através da função gettimeofday
             struct timeval finishtime;
             gettimeofday(&finishtime, NULL);
-            time_t finish_time = finishtime.tv_usec;
+            currentTask.finish_time = finishtime.tv_usec;
 
             FinishedTask endTask;    // 1 representa a função execute
             
             // guardar o identificador da tarefa nas FinishedTask
             strcpy(endTask.taskID, currentTask.taskID);
             // calcular o tempo que demorou a tarefa e converter para milisegundos
-            endTask.exec_time = (finish_time - start_time)/1000;
+            endTask.exec_time = (currentTask.finish_time - currentTask.start_time)/1000;
             // guardar o pid do processo
             endTask.pid = currentTask.pid;
+            strcpy(endTask.prog, currentTask.prog);
+
+            // adicionar a tarefa à fila
+            enqueue(queue, endTask);
 
             printf("\n\nFINISHED TASK:\n");
             printf("Task ID: %s\n", endTask.taskID);
@@ -199,34 +199,25 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
 
 
 
-// Função status vai imprimir as tarefas que estão na fila, que já foram executadas e as que estão a ser executadas
-void status (TaskQueue* queue) {
-    OngoingTask* current = queue->front;
-    while (current != NULL) {
-        printf("Task ID: %s\n", current->taskID);
-        printf("Time: %d\n", current->time);
-        printf("PID: %d\n", current->pid);
-        printf("Program: %s\n", current->prog);
-        printf("Args: %s\n", current->args);
-        current = current->next;
+// Função status vai imprimir as tarefas que estão na fila e as que estão a ser executadas
+void status (TaskQueue* queue, OngoingTask currentTask) {
+    
+    
+    printf("\n\nExecuting\n");
+    // se a task estiver vazia, não há tarefas a serem executadas
+    if (currentTask.prog == "") {
+        printf("No tasks are being executed\n");
     }
+    printf("%s %s\n", currentTask.taskID, currentTask.prog);
 
-    // abrir o ficheiro tarefas.txt
-    int fd = open("tmp/tarefas.txt", O_RDONLY);
-    if (fd == -1) {
-        perror("Erro na abertura do ficheiro tarefas.txt\n");
-        _exit(1);
+    // ler a fila até deixar de haver tarefas
+    FinishedTask task;
+    printf("\n\nFinished\n");
+    while (queue->front != NULL) {
+        task = dequeue(queue);
+        printf("%s %s %ld ms\n", task.taskID, task.prog, task.exec_time);
     }
-
-    FinishedTask endTask;
-    // ler o ficheiro tarefas.txt
-    while (read(fd, &endTask, sizeof(struct FinishedTask)) > 0) {
-        printf("Task ID: %s\n", endTask.taskID);
-        printf("PID: %d\n", endTask.pid);
-        printf("Execution Time: %ld ms\n", endTask.exec_time);
-    }
-    // fechar o ficheiro
-    close(fd);
+    
 }
 
 
@@ -267,7 +258,7 @@ int main(int argc, char *argv[]) {
         }
 
         // caso o tempo seja -1, terminar o ciclo
-        if (currentTask.time == -1) {
+        if (currentTask.time <= -1) {
             break;
         }
 
@@ -277,7 +268,12 @@ int main(int argc, char *argv[]) {
         }
 
         if (currentTask.type == 1) {
-            status(queue);
+            status(queue, currentTask);
+        }
+
+        if (currentTask.type == 2) {
+            // parar a execução
+            break;
         }
 
     }
