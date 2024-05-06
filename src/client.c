@@ -14,7 +14,6 @@
 
 int main(int argc, char *argv[]) {
 
-
     if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[3], "-u") == 0)) {
         
         // abrir o fifo SERVER para enviar informação para o servidor
@@ -87,6 +86,46 @@ int main(int argc, char *argv[]) {
 
         // fechar o fifo
         close(fds);
+
+        // abrir o fifo CLIENT para receber informação do servidor
+        int fdc = open(CLIENT, O_RDONLY);
+        if(fdc == -1){
+            perror("Erro na abertura do fifo fdc (client side)\n");
+            _exit(1);
+        }
+
+
+        // ler do fifo as tarefas a executar
+        OngoingTask currentTaskStatus;
+        int bytes_read;
+        printf("\nExecuting\n");
+        while((bytes_read = read(fdc, &currentTaskStatus, sizeof(OngoingTask))) > 0) {
+            if (bytes_read == -1) {
+                perror("Erro a ler do fifo client\n");
+                _exit(1);
+            }
+
+            if (currentTaskStatus.type == -1) {
+                printf("No executing tasks\n");
+                break;
+            }
+            printf("%s %s\n", currentTaskStatus.taskID, currentTaskStatus.prog);
+        }
+        
+        // ler do fifo as tarefas terminadas
+        printf("\n\nCompleted\n");
+        FinishedTask endTask;
+        while ((bytes_read = read(fdc, &endTask, sizeof(FinishedTask))) > 0) {
+            if (bytes_read == -1) {
+                perror("Erro a ler do fifo client\n");
+                _exit(1);
+            }
+
+            printf("%s %s %ld ms\n", endTask.taskID, endTask.prog, endTask.exec_time);
+        }
+
+        // fechar o fifo
+        close(fdc);
     }
 
     if (strcmp(argv[1], "stop") == 0) {

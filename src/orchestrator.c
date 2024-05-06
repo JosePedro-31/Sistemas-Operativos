@@ -59,7 +59,10 @@ OngoingTask dequeue(TaskQueue* queue) {
 }
 
 
-void execute(TaskQueue* queue, OngoingTask currentTask, int task) {   
+void execute(TaskQueue* queue) {   
+
+    // retirar a tarefa da fila
+    OngoingTask currentTask = dequeue(queue);
 
     // registar o tempo através da função gettimeofday
     struct timeval starttime;
@@ -83,9 +86,6 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
 
     int fd_out_original = dup(1);
     int fd_erro_original = dup(2);
-
-    // para a tarefa ficar em modo executing
-    sleep(3);
 
     // criar um processo filho
     pid_t pid = fork();
@@ -170,8 +170,6 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
             endTask.pid = currentTask.pid;
             strcpy(endTask.prog, currentTask.prog);
 
-
-
             printf("\n\nFINISHED TASK:\n");
             printf("Task ID: %s\n", endTask.taskID);
             printf("PID: %d\n", endTask.pid);
@@ -186,42 +184,60 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
             // escrever o identificador da tarefa
             write(fd, &endTask, sizeof(struct FinishedTask));
 
-            // remover a tarefa da fila
-            OngoingTask task = dequeue(queue);
-            free(task.next);
+            // fechar o ficheiro
+            close(fd);
         }
     }
 }
 
-
-
-// Função status vai imprimir as tarefas que estão na fila e as que estão a ser executadas
-void status (TaskQueue* queue) {
-    
-    
-    printf("\n\nExecuting\n");
-    // ler da fila as tarefas que estão a ser executadas
-    OngoingTask* current = queue->front;
-    while (current != NULL) {
-        printf("%s %s\n", current->taskID, current->prog);
-        current = current->next;
+// função status vai enviar para o cliente as tarefas que estão em execução e as que já estão terminadas
+void status(TaskQueue* queue) {
+    // abrir o fifo CLIENT para enviar informação para o cliente
+    int fdc = open(CLIENT, O_WRONLY);
+    if(fdc == -1){
+        perror("Erro na abertura do fifo fdc (server side)\n");
+        _exit(1);
     }
 
-    // abrir o ficheiro "Tarefas" para leitura
+    // enviar as tarefas que estão a ser executadas
+    OngoingTask currentTaskStatus;
+    OngoingTask* temp = queue->front;
+    if (temp == NULL) {
+        currentTaskStatus.type = -1;
+        if (write(fdc, &currentTaskStatus, sizeof(struct OngoingTask)) == -1) {
+            perror("Erro a escrever\n");
+            _exit(1);
+        }
+    }
+    while (temp != NULL) {
+        currentTaskStatus = *temp;
+        if (write(fdc, &currentTaskStatus, sizeof(struct OngoingTask)) == -1) {
+            perror("Erro a escrever\n");
+            _exit(1);
+        }
+        temp = temp->next;
+}
+    
+
+    // enviar as tarefas que já terminaram
+    FinishedTask endTask;
     int fd = open("tmp/tarefas", O_RDONLY);
     if (fd == -1) {
         perror("Erro na abertura do ficheiro Tarefas\n");
         _exit(1);
     }
-
-    // ler do ficheiro "Tarefas" as tarefas que já foram executadas
-    FinishedTask endTask;
-    
-    printf("\n\nFinished\n");
-    while (read(fd, &endTask, sizeof(struct FinishedTask)) > 0) {
-        printf("%s %s %ld ms\n", endTask.taskID, endTask.prog, endTask.exec_time);
+    int bytes_read;
+    while ((bytes_read = read(fd, &endTask, sizeof(struct FinishedTask))) > 0) {
+        if (write(fdc, &endTask, sizeof(struct FinishedTask)) == -1) {
+            perror("Erro a escrever\n");
+            _exit(1);
+        }
     }
+
+    // fechar o fifo
+    close(fdc);
 }
+
 
 
 int main(int argc, char *argv[]) {
@@ -232,13 +248,19 @@ int main(int argc, char *argv[]) {
         _exit(1);;
     }
 
-    // abrir o fifo SERVER
+    if((mkfifo(CLIENT, 0666) == -1) && errno != EEXIST) {
+        perror("Erro a criar o fifo client\n");
+        _exit(1);
+    }
+
+    // abrir o fifo SERVER para receber informação do cliente
     int fds = open(SERVER, O_RDONLY);
     if(fds == -1){
         perror("Erro na abertura do fifo server (server side)\n");
         _exit(1);
     }
 
+    // abrir o fifo SERVER em modo escrito para manter o servidor em loop
     int fdp = open(SERVER, O_WRONLY);
     if(fdp == -1){
         perror("Erro na abertura do fifo server (server side)\n");
@@ -272,10 +294,8 @@ int main(int argc, char *argv[]) {
             snprintf(currentTask.taskID, sizeof(currentTask.taskID), "T%d", task);
             // adicionar a tarefa à fila
             enqueue(queue, currentTask);
-            // esperar 5 segundos
-            sleep(5);
             // executar a tarefa
-            execute(queue, currentTask, task);
+            execute(queue);
             task++;
         }
 
@@ -293,6 +313,7 @@ int main(int argc, char *argv[]) {
     // fechar o fifo
     close(fds);
     unlink(SERVER);
+    unlink(CLIENT);
     
     return 0;
 }
