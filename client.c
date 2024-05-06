@@ -54,8 +54,6 @@ int main(int argc, char *argv[]) {
         strcpy(currentTask.prog, argv[4]);
         strcpy(currentTask.args, args);
 
-        printf("Args : %s\n", currentTask.args);
-
         // escrever no fifo a struct
         if( write(fds, &currentTask, sizeof(struct OngoingTask)) == -1){
             perror("Erro a escrever no fifo fds (client side)\n");

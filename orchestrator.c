@@ -25,8 +25,8 @@ TaskQueue* initializeQueue() {
 }
 
 // Função para adicionar uma tarefa à fila
-void enqueue(TaskQueue* queue, FinishedTask task) {
-    FinishedTask* newTask = (FinishedTask*)malloc(sizeof(FinishedTask));
+void enqueue(TaskQueue* queue, OngoingTask task) {
+    OngoingTask* newTask = (OngoingTask*)malloc(sizeof(OngoingTask));
     if (newTask == NULL) {
         perror("Erro ao alocar memória para a tarefa");
         _exit(1);
@@ -43,13 +43,13 @@ void enqueue(TaskQueue* queue, FinishedTask task) {
 }
 
 // Função para retirar uma tarefa da fila
-FinishedTask dequeue(TaskQueue* queue) {
+OngoingTask dequeue(TaskQueue* queue) {
     if (queue->front == NULL) {
         perror("Erro a retirar tarefa da fila");
         _exit(1);
     }
-    FinishedTask task = *queue->front;
-    FinishedTask* temp = queue->front;
+    OngoingTask task = *queue->front;
+    OngoingTask* temp = queue->front;
     queue->front = queue->front->next;
     if (queue->front == NULL) {
         queue->rear = NULL;
@@ -61,16 +61,10 @@ FinishedTask dequeue(TaskQueue* queue) {
 
 void execute(TaskQueue* queue, OngoingTask currentTask, int task) {   
 
-    printf("\n\nTASK %d Received\n", task);
-
-    // criar um identificador para a tarefa
-    snprintf(currentTask.taskID, sizeof(currentTask.taskID), "T%d", task);
-
     // registar o tempo através da função gettimeofday
     struct timeval starttime;
     gettimeofday(&starttime, NULL);
     currentTask.start_time = starttime.tv_usec;
-    
 
     // separar os argumentos da string args
     char *commands[currentTask.argsSize + 1];
@@ -83,13 +77,15 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
     }
     commands[i] = NULL;
 
-    printf("Time: %d\n", currentTask.time);
-    printf("PID: %d\n", currentTask.pid);
     printf("Task ID: %s\n", currentTask.taskID);
+    printf("PID: %d\n", currentTask.pid);
     printf("Program: %s\n", currentTask.prog);      
 
     int fd_out_original = dup(1);
     int fd_erro_original = dup(2);
+
+    // para a tarefa ficar em modo executing
+    sleep(3);
 
     // criar um processo filho
     pid_t pid = fork();
@@ -142,6 +138,7 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
         if (WIFEXITED(status)) {
             // se o processo filho terminou normalmente
 
+            // redirecionar a saída para o terminal
             int res = dup2(1, fd_out_original); // duplicate file descriptor fd_out to stdout
 
             if (res == -1) {
@@ -173,8 +170,7 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
             endTask.pid = currentTask.pid;
             strcpy(endTask.prog, currentTask.prog);
 
-            // adicionar a tarefa à fila
-            enqueue(queue, endTask);
+
 
             printf("\n\nFINISHED TASK:\n");
             printf("Task ID: %s\n", endTask.taskID);
@@ -182,17 +178,17 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
             printf("Execution Time: %ld ms\n", endTask.exec_time);
 
             // escrever para um ficheiro "Tarefas" o identificador da tarefa e o tempo que demorou a ser executada
-            int fd = open("tmp/tarefas.txt", O_WRONLY | O_APPEND | O_CREAT, 0777);
+            int fd = open("tmp/tarefas", O_WRONLY | O_APPEND | O_CREAT, 0777);
             if (fd == -1) {
                 perror("Erro na abertura do ficheiro Tarefas\n");
                 _exit(1);
             }
             // escrever o identificador da tarefa
-            write(fd, &endTask.taskID, sizeof(char));
-            // escrever o tempo de execução da tarefa
-            write(fd, &endTask.exec_time, sizeof(time_t));
-            // fechar o descritor do ficheiro
-            close(fd);
+            write(fd, &endTask, sizeof(struct FinishedTask));
+
+            // remover a tarefa da fila
+            OngoingTask task = dequeue(queue);
+            free(task.next);
         }
     }
 }
@@ -200,24 +196,31 @@ void execute(TaskQueue* queue, OngoingTask currentTask, int task) {
 
 
 // Função status vai imprimir as tarefas que estão na fila e as que estão a ser executadas
-void status (TaskQueue* queue, OngoingTask currentTask) {
+void status (TaskQueue* queue) {
     
     
     printf("\n\nExecuting\n");
-    // se a task estiver vazia, não há tarefas a serem executadas
-    if (currentTask.prog == "") {
-        printf("No tasks are being executed\n");
+    // ler da fila as tarefas que estão a ser executadas
+    OngoingTask* current = queue->front;
+    while (current != NULL) {
+        printf("%s %s\n", current->taskID, current->prog);
+        current = current->next;
     }
-    printf("%s %s\n", currentTask.taskID, currentTask.prog);
 
-    // ler a fila até deixar de haver tarefas
-    FinishedTask task;
-    printf("\n\nFinished\n");
-    while (queue->front != NULL) {
-        task = dequeue(queue);
-        printf("%s %s %ld ms\n", task.taskID, task.prog, task.exec_time);
+    // abrir o ficheiro "Tarefas" para leitura
+    int fd = open("tmp/tarefas", O_RDONLY);
+    if (fd == -1) {
+        perror("Erro na abertura do ficheiro Tarefas\n");
+        _exit(1);
     }
+
+    // ler do ficheiro "Tarefas" as tarefas que já foram executadas
+    FinishedTask endTask;
     
+    printf("\n\nFinished\n");
+    while (read(fd, &endTask, sizeof(struct FinishedTask)) > 0) {
+        printf("%s %s %ld ms\n", endTask.taskID, endTask.prog, endTask.exec_time);
+    }
 }
 
 
@@ -263,12 +266,21 @@ int main(int argc, char *argv[]) {
         }
 
         if (currentTask.type == 0) {
+
+            printf("\n\nTASK %d Received\n", task);
+            // criar um identificador para a tarefa
+            snprintf(currentTask.taskID, sizeof(currentTask.taskID), "T%d", task);
+            // adicionar a tarefa à fila
+            enqueue(queue, currentTask);
+            // esperar 5 segundos
+            sleep(5);
+            // executar a tarefa
             execute(queue, currentTask, task);
             task++;
         }
 
         if (currentTask.type == 1) {
-            status(queue, currentTask);
+            status(queue);
         }
 
         if (currentTask.type == 2) {
@@ -281,7 +293,6 @@ int main(int argc, char *argv[]) {
     // fechar o fifo
     close(fds);
     unlink(SERVER);
-    
     
     return 0;
 }

@@ -11,6 +11,7 @@ typedef struct OngoingTask{
     char taskID[20];
     time_t start_time;
     time_t finish_time;
+    struct OngoingTask *next;
 } OngoingTask;
 
 typedef struct FinishedTask{
@@ -18,10 +19,9 @@ typedef struct FinishedTask{
     char taskID[20];
     char prog[20];
     time_t exec_time;
-    struct FinishedTask *next;
 } FinishedTask;
 
 typedef struct TaskQueue{
-    FinishedTask *front;
-    FinishedTask *rear;
+    OngoingTask *front;
+    OngoingTask *rear;
 } TaskQueue;
