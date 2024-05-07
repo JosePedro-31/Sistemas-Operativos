@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
         strcpy(currentTask.args, args);
 
         // escrever no fifo a struct
-        if( write(fds, &currentTask, sizeof(struct OngoingTask)) == -1){
+        if(write(fds, &currentTask, sizeof(struct OngoingTask)) == -1){
             perror("Erro a escrever no fifo fds (client side)\n");
             _exit(1);
         }  

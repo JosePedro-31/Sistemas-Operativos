@@ -138,7 +138,6 @@ void execute(TaskQueue* queue) {
             int status;
             waitpid(pid, &status, 0);
             if (WIFEXITED(status)) {
-                // se o processo filho terminou normalmente
 
                 // redirecionar a saída para o terminal
                 int res = dup2(1, fd_out_original); // duplicate file descriptor fd_out to stdout
@@ -162,7 +161,7 @@ void execute(TaskQueue* queue) {
                 gettimeofday(&finishtime, NULL);
                 currentTask.finish_time = finishtime.tv_usec;
 
-                FinishedTask endTask;    // 1 representa a função execute
+                FinishedTask endTask;
                 
                 // guardar o identificador da tarefa nas FinishedTask
                 strcpy(endTask.taskID, currentTask.taskID);
